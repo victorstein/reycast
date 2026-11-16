@@ -39,6 +39,7 @@ class OverlaySession(
     private val icons: MutableMap<String, Drawable>,
     private val background: ExecutorService,
     private val requestedAtMs: Long,
+    private val windowType: Int,
     private val onClosed: () -> Unit,
 ) {
     private val windowManager = context.getSystemService(WindowManager::class.java)
@@ -118,7 +119,7 @@ class OverlaySession(
     private fun overlayParams() = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.MATCH_PARENT,
-        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        windowType,
         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
     ).apply {

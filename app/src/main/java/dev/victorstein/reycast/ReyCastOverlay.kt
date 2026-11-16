@@ -25,6 +25,12 @@ object ReyCastOverlay {
     private val background: ExecutorService = Executors.newSingleThreadExecutor()
     private val icons = HashMap<String, Drawable>()
 
+    var accessibilityService: ReyCastAccessibilityService? = null
+
+    fun closeSession() {
+        session?.close()
+    }
+
     private val overlayContexts = HashMap<Int, Context>()
 
     // The overlay lands on the given display (DeX external monitor) rather than always on the tablet screen.
@@ -33,18 +39,27 @@ object ReyCastOverlay {
             it.close()
             return
         }
-        if (!Settings.canDrawOverlays(appContext)) {
-            Toast.makeText(appContext, R.string.needs_overlay_permission, Toast.LENGTH_LONG).show()
-            return
-        }
-        val targetDisplay = display
-            ?: appContext.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
-        val overlayContext = overlayContexts.getOrPut(targetDisplay.displayId) {
-            appContext.createWindowContext(targetDisplay, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null)
+        val service = accessibilityService
+        val sessionContext: Context
+        val windowType: Int
+        if (service != null) {
+            sessionContext = service
+            windowType = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+        } else {
+            if (!Settings.canDrawOverlays(appContext)) {
+                Toast.makeText(appContext, R.string.needs_overlay_permission, Toast.LENGTH_LONG).show()
+                return
+            }
+            val targetDisplay = display
+                ?: appContext.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
+            windowType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            sessionContext = overlayContexts.getOrPut(targetDisplay.displayId) {
+                appContext.createWindowContext(targetDisplay, windowType, null)
+            }
         }
         val appCatalog = catalog ?: AppCatalog(appContext).also { catalog = it }
         val usageStore = usage ?: UsageStore(AtomicFile(File(appContext.filesDir, "usage.tsv")), background).also { usage = it }
-        session = OverlaySession(overlayContext, appCatalog, usageStore, icons, background, requestedAtMs) { session = null }
+        session = OverlaySession(sessionContext, appCatalog, usageStore, icons, background, requestedAtMs, windowType) { session = null }
             .also { it.open() }
     }
 }

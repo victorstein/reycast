@@ -3,4 +3,5 @@
     <string name="search_hint">Search apps</string>
     <string name="cannot_open">Can\'t open %1$s</string>
     <string name="needs_overlay_permission">ReyCast needs \"Display over other apps\"</string>
+    <string name="accessibility_service_description">Lets ReyCast show its search box even when DeX hides app overlays</string>
 </resources>
