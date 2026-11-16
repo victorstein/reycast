@@ -28,11 +28,15 @@ class AppCatalog(private val context: Context) {
         val fresh = packageManager
             .queryIntentActivities(launcherIntent, PackageManager.ResolveInfoFlags.of(0))
             .filter { it.activityInfo.packageName != context.packageName }
-            .map { info ->
+            .mapNotNull { info ->
                 val activity = info.activityInfo
                 val component = ComponentName(activity.packageName, activity.name).flattenToShortString()
                 val lastUpdate = lastUpdates.getOrPut(activity.packageName) {
-                    packageManager.getPackageInfo(activity.packageName, 0).lastUpdateTime
+                    try {
+                        packageManager.getPackageInfo(activity.packageName, PackageManager.PackageInfoFlags.of(0)).lastUpdateTime
+                    } catch (e: PackageManager.NameNotFoundException) {
+                        return@mapNotNull null
+                    }
                 }
                 val label = known[component]?.takeIf { it.lastUpdate == lastUpdate }?.label
                     ?: CatalogCache.cleanLabel(info.loadLabel(packageManager).toString())
@@ -42,10 +46,13 @@ class AppCatalog(private val context: Context) {
         return fresh
     }
 
-    fun loadIcon(component: String): Drawable? = try {
-        packageManager.getActivityIcon(ComponentName.unflattenFromString(component)!!)
-    } catch (e: PackageManager.NameNotFoundException) {
-        null
+    fun loadIcon(component: String): Drawable? {
+        val name = ComponentName.unflattenFromString(component) ?: return null
+        return try {
+            packageManager.getActivityIcon(name)
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
     }
 
     private fun write(entries: List<CatalogEntry>) {

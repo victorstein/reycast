@@ -7,6 +7,8 @@ import android.widget.Toast
 import dev.victorstein.reycast.android.AppCatalog
 import dev.victorstein.reycast.android.UsageStore
 import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * The panel is an overlay window, not an activity: in DeX an activity is a freeform task that is either
@@ -16,6 +18,7 @@ object ReyCastOverlay {
     private var session: OverlaySession? = null
     private var catalog: AppCatalog? = null
     private var usage: UsageStore? = null
+    private val background: ExecutorService = Executors.newSingleThreadExecutor()
 
     fun toggle(context: Context, requestedAtMs: Long) {
         val open = session
@@ -27,8 +30,10 @@ object ReyCastOverlay {
             Toast.makeText(context, R.string.needs_overlay_permission, Toast.LENGTH_LONG).show()
             return
         }
-        val appCatalog = catalog ?: AppCatalog(context).also { catalog = it }
-        val usageStore = usage ?: UsageStore(AtomicFile(File(context.filesDir, "usage.tsv"))).also { usage = it }
-        session = OverlaySession(context, appCatalog, usageStore, requestedAtMs) { session = null }.also { it.open() }
+        val appContext = context.applicationContext
+        val appCatalog = catalog ?: AppCatalog(appContext).also { catalog = it }
+        val usageStore = usage ?: UsageStore(AtomicFile(File(appContext.filesDir, "usage.tsv"))).also { usage = it }
+        session = OverlaySession(context, appCatalog, usageStore, background, requestedAtMs) { session = null }
+            .also { it.open() }
     }
 }

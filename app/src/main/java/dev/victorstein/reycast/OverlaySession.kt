@@ -30,18 +30,18 @@ import dev.victorstein.reycast.core.CatalogEntry
 import dev.victorstein.reycast.core.KeyAction
 import dev.victorstein.reycast.core.KeyRouter
 import dev.victorstein.reycast.core.Ranker
-import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 
 class OverlaySession(
     private val context: Context,
     private val catalog: AppCatalog,
     private val usage: UsageStore,
+    private val background: ExecutorService,
     private val requestedAtMs: Long,
     private val onClosed: () -> Unit,
 ) {
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private val main = Handler(Looper.getMainLooper())
-    private val background = Executors.newSingleThreadExecutor()
     private val root = LayoutInflater.from(ContextThemeWrapper(context, android.R.style.Theme_DeviceDefault))
         .inflate(R.layout.overlay_panel, null) as OverlayRoot
     private val query: EditText = root.findViewById(R.id.query)
@@ -98,9 +98,11 @@ class OverlaySession(
     fun close() {
         if (closed) return
         closed = true
-        windowManager.removeView(root)
-        background.shutdown()
-        onClosed()
+        try {
+            windowManager.removeView(root)
+        } finally {
+            onClosed()
+        }
     }
 
     private fun placePanel() {
@@ -169,6 +171,7 @@ class OverlaySession(
     // Handled before the text field: it would consume ↑, move focus out on ↓ and turn Enter into an
     // editor action.
     private fun handleKey(event: KeyEvent): Boolean {
+        if (closed) return true
         val unicodeWithoutAlt = event.getUnicodeChar(event.metaState and KeyEvent.META_ALT_MASK.inv())
         // Alt that produces no character is the Cmd key (system Meta→Alt remap); AltGr symbols like @ must type.
         val cmdHeld = event.isAltPressed && event.getUnicodeChar(event.metaState) <= 0
@@ -197,9 +200,10 @@ class OverlaySession(
     // Started while the overlay is still visible: a visible overlay window is what exempts ReyCast from
     // Android's background-activity-start block.
     private fun launch(entry: CatalogEntry) {
+        val component = ComponentName.unflattenFromString(entry.component) ?: return cannotOpen(entry)
         val intent = Intent(Intent.ACTION_MAIN)
             .addCategory(Intent.CATEGORY_LAUNCHER)
-            .setComponent(ComponentName.unflattenFromString(entry.component))
+            .setComponent(component)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         try {
             context.startActivity(intent)
