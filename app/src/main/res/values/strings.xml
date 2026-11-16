@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">ReyCast</string>
+    <string name="search_hint">Search apps</string>
+    <string name="cannot_open">Can\'t open %1$s</string>
+</resources>
