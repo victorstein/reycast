@@ -26,4 +26,26 @@ class CatalogCacheTest {
             CatalogCache.parse("garbage\na/.A\tA\ta\t1\nb/.B\tB\tb\tnot-a-number"),
         )
     }
+
+    @Test
+    fun emptyTextParsesToNoEntries() {
+        assertEquals(emptyList<CatalogEntry>(), CatalogCache.parse(""))
+    }
+
+    @Test
+    fun trailingNewlineStillRoundTrips() {
+        val entries = listOf(CatalogEntry("a/.A", "A", "a", 1L), CatalogEntry("b/.B", "B", "b", 2L))
+        assertEquals(entries, CatalogCache.parse(CatalogCache.serialize(entries) + "\n"))
+    }
+
+    @Test
+    fun emptyLabelRoundTrips() {
+        val entries = listOf(CatalogEntry("a/.A", "", "a", 1L))
+        assertEquals(entries, CatalogCache.parse(CatalogCache.serialize(entries)))
+    }
+
+    @Test
+    fun cleanLabelReplacesFieldAndLineBreaksWithSpaces() {
+        assertEquals("a b c", CatalogCache.cleanLabel("a\tb\nc"))
+    }
 }
