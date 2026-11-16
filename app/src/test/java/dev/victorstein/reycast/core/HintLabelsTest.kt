@@ -1,13 +1,14 @@
 package dev.victorstein.reycast.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HintLabelsTest {
     private fun assertPrefixFree(labels: List<String>) {
         assertEquals(labels.size, labels.toSet().size)
-        for (a in labels) for (b in labels) if (a != b) assertTrue("$a prefixes $b", !b.startsWith(a))
+        for (a in labels) for (b in labels) if (a != b) assertFalse("$a prefixes $b", b.startsWith(a))
     }
 
     @Test
@@ -35,7 +36,9 @@ class HintLabelsTest {
         val labels = HintLabels.assign(196)
         assertTrue(labels.all { it.length == 2 })
         assertPrefixFree(labels)
-        assertTrue(HintLabels.assign(197).all { it.length == 3 })
+        val threeLetters = HintLabels.assign(197)
+        assertTrue(threeLetters.all { it.length == 3 })
+        assertPrefixFree(threeLetters)
     }
 
     @Test

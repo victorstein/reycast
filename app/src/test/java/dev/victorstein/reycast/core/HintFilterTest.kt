@@ -50,4 +50,22 @@ class HintFilterTest {
     fun singleLetterLabelsMatchImmediately() {
         assertEquals(2, HintFilter(listOf("s", "a", "d")).type('d'))
     }
+
+    @Test
+    fun lettersAfterAFullMatchAreIgnored() {
+        val filter = HintFilter(labels)
+        filter.type('s')
+        filter.type('d')
+        assertNull(filter.type('a'))
+        assertEquals("sd", filter.typed)
+    }
+
+    @Test
+    fun backspaceAfterAnIgnoredLetterRemovesTheRealLastLetter() {
+        val filter = HintFilter(labels)
+        filter.type('a')
+        filter.type('z')
+        filter.backspace()
+        assertEquals("", filter.typed)
+    }
 }
