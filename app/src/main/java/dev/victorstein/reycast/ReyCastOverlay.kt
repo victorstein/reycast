@@ -14,6 +14,10 @@ import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+interface Session {
+    fun close()
+}
+
 /**
  * The panel is an overlay window, not an activity: in DeX an activity is a freeform task that is either
  * pinned to the left edge or, when full-screen, gets a caption bar. An overlay has neither.
