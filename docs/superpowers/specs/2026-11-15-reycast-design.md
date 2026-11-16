@@ -19,8 +19,8 @@ Launch any installed app from the keyboard in a few keystrokes: Cmd+Space, type 
 Enter. The only feature is app launching.
 
 Out of scope: commands, scripts, plugins, window management (already done in Key Mapper),
-calculator, web search, snippets, clipboard history, settings screen, themes, start at boot, and the
-cross-desk window switcher (a separate follow-up project built on top of ReyCast).
+calculator, web search, snippets, clipboard history, settings screen, themes, start at boot, and a
+cross-desk window switcher (dropped 2026-11-16: Alfonso works on one desktop; Android's own Cmd+Tab covers it).
 
 ## Step 0: platform spike (before any feature code)
 
@@ -249,3 +249,36 @@ The regenerated `mac-shortcuts.json` is imported with Restore → Replace.
     first keys land in Termux).
   - Summon on desk 1, switch to desk 2, summon again: it opens on desk 2 without switching back.
   - Launch an app already running on the same desk and on another desk; record what happens.
+
+## Changes after the spike (2026-11-16)
+
+Found while testing on the tablet; they supersede the matching parts above.
+
+- **Hotkey is a broadcast, not an app launch.** DeX caps a desktop at 5 open apps and counted the
+  trampoline activity as one, so with 5 apps open Cmd+Space failed ("cannot show more than 5 apps").
+  Key Mapper's Cmd+Space map now uses an **Intent** action, target `BROADCAST_RECEIVER`, URI
+  `#Intent;action=dev.victorstein.reycast.TOGGLE;component=dev.victorstein.reycast/.ToggleReceiver;end`.
+  The exported `ToggleReceiver` toggles the panel. `LauncherActivity` stays as the app-drawer entry.
+- **The panel is an accessibility overlay when possible.** With 5 apps open Samsung force-hides
+  non-system overlays (`mForceHideNonSystemOverlayWindow=true`), so `TYPE_APPLICATION_OVERLAY` was
+  added but invisible. ReyCast now has a minimal accessibility service
+  (`ReyCastAccessibilityService`: one cheap event type, no content retrieval, no key filtering) whose
+  WindowManager draws the panel as `TYPE_ACCESSIBILITY_OVERLAY`, which is exempt, takes keyboard focus,
+  and may start activities. `install.sh` appends it to `enabled_accessibility_services` next to Key
+  Mapper's. Without the service, the old `TYPE_APPLICATION_OVERLAY` path remains.
+- One overlay window context is cached per display instead of created per summon.
+- Testing note: `uiautomator dump` suspends accessibility services and closes the panel; verify with
+  screenshots instead.
+
+## Verification (2026-11-16)
+
+- Speed (`ReyCast: first frame`): 46–94 ms across summons; 64 ms from Key Mapper's start request to the
+  first frame in the activity-launch era. Target (200 ms) met.
+- With 5 apps open on the desktop: panel shows, has focus, typing works (accessibility overlay).
+- ↑/↓, Ctrl+J/K, Enter, Esc, Cmd+Space toggle, click outside to close: work (Alfonso).
+- "Hold Cmd, Space, t": "t" lands in the box. Cmd+Space from Termux then typing immediately: the keys
+  land in the box.
+- Launching an app that is open on another desk while the current desk has 5 apps: DeX shows "cannot
+  show more than 5 apps" (DeX's own cap; known limitation).
+- Not verified: summoning on a second desk; cold-start timing after Freecess freezing; DeX on an
+  external display.
