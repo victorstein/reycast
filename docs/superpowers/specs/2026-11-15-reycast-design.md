@@ -278,7 +278,8 @@ Found while testing on the tablet; they supersede the matching parts above.
 - ↑/↓, Ctrl+J/K, Enter, Esc, Cmd+Space toggle, click outside to close: work (Alfonso).
 - "Hold Cmd, Space, t": "t" lands in the box. Cmd+Space from Termux then typing immediately: the keys
   land in the box.
-- Launching an app that is open on another desk while the current desk has 5 apps: DeX shows "cannot
-  show more than 5 apps" (DeX's own cap; known limitation).
+- Launching an app that is open on another desk: Android moves it to the current desk. If the current
+  desk already has 5 apps, DeX refuses with "cannot show more than 5 apps" (DeX's own cap; known
+  limitation).
 - Not verified: summoning on a second desk; cold-start timing after Freecess freezing; DeX on an
   external display.
