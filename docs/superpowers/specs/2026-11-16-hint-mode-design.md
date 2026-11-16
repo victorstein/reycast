@@ -27,19 +27,22 @@ Known limitations (platform, not fixed by v1):
   `isAccessibilityTool="false"` (Play Protect blocks non-tools that claim it), so permission dialogs,
   install confirmations and some banking/payment buttons get no labels.
 
-## Step 0: device spike (gates the plan)
+## Step 0: device spike (done 2026-11-16, branch `spike/hint-mode`)
 
-Before the full build, a throwaway walk of `getWindows()` on the tablet answers three questions the
-design depends on:
-1. **Chrome page content:** does Chrome expose page links as clickable nodes to ReyCast's service
-   (Chrome sizes its accessibility tree by which services are running)?
-2. **Occlusion:** with Chrome partly covering another window in DeX, are the covered window's nodes
-   reported, and does the occlusion filter below remove them?
-3. **Menus vs focus:** does an open popup (Chrome overflow menu, a Compose dropdown, a Samsung app
-   menu) survive a focusable accessibility overlay taking focus?
+Run on the tablet (tablet mode, not DeX) with the new service config:
+1. **Chrome page content: yes.** A Wikipedia page exposed its links (`android.view.View`, clickable,
+   link text in `contentDescription`) alongside the toolbar. Footnote links appear twice with
+   identical rects; the identical-rect dedupe covers them.
+2. **Occlusion: not tested** (no overlapping windows outside DeX); covered by the device tests.
+   While Chrome's overflow menu was open, `getWindows()` listed only the popup, not Chrome's main
+   window.
+3. **Menus vs focus: they survive.** With the overflow menu open, a focusable full-screen
+   `TYPE_ACCESSIBILITY_OVERLAY` took focus and the popup window was still listed seconds later. The
+   focusable overlay design stays; no `onKeyEvent` path.
 
-If (3) fails, hint mode switches to the alternative key path described under Overlay.
-If (1) fails, Chrome page links become a documented limitation.
+Timing: warm walks of a 1,560-node Chrome page took 33–57 ms; the first walk after a page load or
+reinstall took 0.9–1.5 s while Chrome built its accessibility tree. The taskbar and Termux took
+~90 ms. Skipping subtrees outside the window bounds did not reduce the node count.
 
 ## Hotkey
 
@@ -113,10 +116,6 @@ immediately. Labels are assigned in target order.
   - Esc closes. Modifier-only keys (including the chord's release) are ignored.
 - Closes on: Esc, summoning hint mode again, summoning the launcher, or focus loss (a click on the
   app beneath moves focus away).
-- **Alternative key path, only if spike question 3 fails:** the overlay is also
-  `FLAG_NOT_FOCUSABLE`, and keys come from the service's `onKeyEvent` (`canRequestFilterKeyEvents`,
-  `flagRequestFilterKeyEvents`), consumed only while a hint session is open. Focus-loss closing is
-  then replaced by closing on `TYPE_WINDOWS_CHANGED`.
 
 ### Acting
 
@@ -133,7 +132,8 @@ On a full match the overlay is removed first, then:
 
 - Service off → toast asking to enable ReyCast's accessibility service; nothing opens.
 - No targets → toast "Nothing clickable on screen"; nothing opens.
-- Collection duration and first frame are logged like the launcher's first frame.
+- Collection duration and first frame are logged like the launcher's first frame. The first
+  summon on a freshly loaded Chrome page can take ~1 s (Chrome builds its tree lazily); accepted for v1.
 
 ## Install
 
