@@ -3,13 +3,13 @@ package dev.victorstein.reycast.android
 import android.util.AtomicFile
 import dev.victorstein.reycast.core.UsageHistory
 import java.io.IOException
-import java.util.concurrent.Executors
+import java.util.concurrent.Executor
 
 class UsageStore(
     private val file: AtomicFile,
+    private val writer: Executor,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    private val writer = Executors.newSingleThreadExecutor()
     private val history: UsageHistory = try {
         UsageHistory.parse(String(file.readFully()))
     } catch (e: IOException) {

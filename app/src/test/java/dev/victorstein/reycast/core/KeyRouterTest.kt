@@ -5,8 +5,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class KeyRouterTest {
-    private fun route(keyCode: Int, ctrl: Boolean = false, alt: Boolean = false, unicode: Int = 0) =
-        KeyRouter.route(keyCode, ctrl, alt, unicode)
+    private fun route(keyCode: Int, ctrl: Boolean = false, cmdHeld: Boolean = false, unicode: Int = 0) =
+        KeyRouter.route(keyCode, ctrl, cmdHeld, unicode)
 
     @Test
     fun arrowsAndCtrlJkMoveTheHighlight() {
@@ -18,7 +18,7 @@ class KeyRouterTest {
 
     @Test
     fun ctrlTakesPrecedenceOverAlt() {
-        assertEquals(KeyAction.MoveUp, route(KeyEvent.KEYCODE_K, ctrl = true, alt = true, unicode = 'k'.code))
+        assertEquals(KeyAction.MoveUp, route(KeyEvent.KEYCODE_K, ctrl = true, cmdHeld = true, unicode = 'k'.code))
     }
 
     @Test
@@ -34,24 +34,24 @@ class KeyRouterTest {
 
     @Test
     fun altHeldLetterTypesThePlainLetter() {
-        assertEquals(KeyAction.Type('t'), route(KeyEvent.KEYCODE_T, alt = true, unicode = 't'.code))
+        assertEquals(KeyAction.Type('t'), route(KeyEvent.KEYCODE_T, cmdHeld = true, unicode = 't'.code))
     }
 
     @Test
     fun altWithSpaceTypesASpaceAndAltWithEnterOrEscapeStillLaunchesOrCloses() {
-        assertEquals(KeyAction.Type(' '), route(KeyEvent.KEYCODE_SPACE, alt = true, unicode = ' '.code))
-        assertEquals(KeyAction.Launch, route(KeyEvent.KEYCODE_ENTER, alt = true))
-        assertEquals(KeyAction.Close, route(KeyEvent.KEYCODE_ESCAPE, alt = true))
+        assertEquals(KeyAction.Type(' '), route(KeyEvent.KEYCODE_SPACE, cmdHeld = true, unicode = ' '.code))
+        assertEquals(KeyAction.Launch, route(KeyEvent.KEYCODE_ENTER, cmdHeld = true))
+        assertEquals(KeyAction.Close, route(KeyEvent.KEYCODE_ESCAPE, cmdHeld = true))
     }
 
     @Test
     fun everythingElsePassesThrough() {
-        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_T, ctrl = true, alt = true, unicode = 't'.code))
-        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_DEL, alt = true))
+        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_T, ctrl = true, cmdHeld = true, unicode = 't'.code))
+        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_DEL, cmdHeld = true))
         val deadAcute = 0x80000000.toInt() or '´'.code
-        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_E, alt = true, unicode = deadAcute))
+        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_E, cmdHeld = true, unicode = deadAcute))
         assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_T, unicode = 't'.code))
-        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_TAB, alt = true, unicode = '\t'.code))
+        assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_TAB, cmdHeld = true, unicode = '\t'.code))
         assertEquals(KeyAction.PassThrough, route(KeyEvent.KEYCODE_T, ctrl = true, unicode = 't'.code))
     }
 }

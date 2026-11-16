@@ -36,6 +36,7 @@ class OverlaySession(
     private val context: Context,
     private val catalog: AppCatalog,
     private val usage: UsageStore,
+    private val icons: MutableMap<String, Drawable>,
     private val background: ExecutorService,
     private val requestedAtMs: Long,
     private val onClosed: () -> Unit,
@@ -47,7 +48,6 @@ class OverlaySession(
     private val query: EditText = root.findViewById(R.id.query)
     private val rows: List<View>
     private val placeholderIcon: Drawable by lazy { context.getDrawable(android.R.drawable.sym_def_app_icon)!! }
-    private val icons = HashMap<String, Drawable>()
     private val iconsLoading = HashSet<String>()
     private var entries: List<CatalogEntry> = emptyList()
     private var frecency: Map<String, Int> = emptyMap()
@@ -100,7 +100,7 @@ class OverlaySession(
         if (closed) return
         closed = true
         try {
-            windowManager.removeView(root)
+            if (root.isAttachedToWindow) windowManager.removeView(root)
         } finally {
             onClosed()
         }

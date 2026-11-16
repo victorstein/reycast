@@ -2,6 +2,7 @@ package dev.victorstein.reycast
 
 import android.content.Context
 import android.hardware.display.DisplayManager
+import android.graphics.drawable.Drawable
 import android.provider.Settings
 import android.util.AtomicFile
 import android.view.Display
@@ -22,6 +23,7 @@ object ReyCastOverlay {
     private var catalog: AppCatalog? = null
     private var usage: UsageStore? = null
     private val background: ExecutorService = Executors.newSingleThreadExecutor()
+    private val icons = HashMap<String, Drawable>()
 
     private val overlayContexts = HashMap<Int, Context>()
 
@@ -41,8 +43,8 @@ object ReyCastOverlay {
             appContext.createWindowContext(targetDisplay, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null)
         }
         val appCatalog = catalog ?: AppCatalog(appContext).also { catalog = it }
-        val usageStore = usage ?: UsageStore(AtomicFile(File(appContext.filesDir, "usage.tsv"))).also { usage = it }
-        session = OverlaySession(overlayContext, appCatalog, usageStore, background, requestedAtMs) { session = null }
+        val usageStore = usage ?: UsageStore(AtomicFile(File(appContext.filesDir, "usage.tsv")), background).also { usage = it }
+        session = OverlaySession(overlayContext, appCatalog, usageStore, icons, background, requestedAtMs) { session = null }
             .also { it.open() }
     }
 }
