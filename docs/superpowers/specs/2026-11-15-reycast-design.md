@@ -215,8 +215,11 @@ The regenerated `mac-shortcuts.json` is imported with Restore → Replace.
 - **On-device checks over adb:**
   - Type with `input text`, confirm the expected top row via `uiautomator dump`; Enter launches; Esc
     closes; no ReyCast task remains afterwards (`dumpsys activity recents`).
-  - Speed, end to end from the key press: screen recording of Cmd+Space to the first drawn panel,
-    with the ReyCast process both warm and killed (cold). Target under 200 ms warm.
+  - Speed, triggered by the real Cmd+Space through Key Mapper (not `am start`): the system's
+    `ActivityTaskManager: Displayed dev.victorstein.reycast/... +Nms` log line (time from Key Mapper's
+    start request to the first drawn frame), with the ReyCast process both warm and force-stopped
+    (cold). Target under 200 ms warm. Key Mapper's own evdev-to-request time is excluded; it is the
+    same path every existing shortcut already uses.
 - **Manual, with the real Corne:**
   - Cmd+Space from Chrome, Termux and an empty desktop; Cmd+Space again closes it.
   - ↑/↓, Ctrl+J/K, Enter and Esc with a real keyboard (adb key injection doesn't reproduce text-field
