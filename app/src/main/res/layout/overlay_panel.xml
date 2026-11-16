@@ -1,7 +1,17 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<dev.victorstein.reycast.OverlayRoot xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrim"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clickable="true"
+    android:focusable="false">
+
+<LinearLayout
+    android:id="@+id/panel"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_gravity="top|center_horizontal"
     android:background="@drawable/panel_bg"
+    android:clickable="true"
     android:orientation="vertical"
     android:padding="6dp">
 
@@ -31,3 +41,4 @@
         android:orientation="vertical"
         android:paddingTop="4dp" />
 </LinearLayout>
+</dev.victorstein.reycast.OverlayRoot>
