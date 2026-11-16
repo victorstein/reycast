@@ -21,9 +21,8 @@ object ReyCastOverlay {
     private val background: ExecutorService = Executors.newSingleThreadExecutor()
 
     fun toggle(context: Context, requestedAtMs: Long) {
-        val open = session
-        if (open != null) {
-            open.close()
+        session?.let {
+            it.close()
             return
         }
         if (!Settings.canDrawOverlays(context)) {

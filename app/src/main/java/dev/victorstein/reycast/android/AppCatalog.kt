@@ -15,10 +15,18 @@ class AppCatalog(private val context: Context) {
     private val packageManager = context.packageManager
     private val cacheFile = AtomicFile(File(context.filesDir, "catalog.tsv"))
 
-    fun cached(): List<CatalogEntry> = try {
-        CatalogCache.parse(String(cacheFile.readFully()))
-    } catch (e: IOException) {
-        emptyList()
+    @Volatile
+    private var lastKnown: List<CatalogEntry> = emptyList()
+
+    fun cached(): List<CatalogEntry> {
+        if (lastKnown.isEmpty()) {
+            lastKnown = try {
+                CatalogCache.parse(String(cacheFile.readFully()))
+            } catch (e: IOException) {
+                emptyList()
+            }
+        }
+        return lastKnown
     }
 
     fun refresh(previous: List<CatalogEntry>): List<CatalogEntry> {
@@ -42,7 +50,8 @@ class AppCatalog(private val context: Context) {
                     ?: CatalogCache.cleanLabel(info.loadLabel(packageManager).toString())
                 CatalogEntry(component, label, activity.packageName, lastUpdate)
             }
-        write(fresh)
+        if (fresh != previous) cacheFile.writeQuietly(CatalogCache.serialize(fresh))
+        lastKnown = fresh
         return fresh
     }
 
@@ -52,16 +61,6 @@ class AppCatalog(private val context: Context) {
             packageManager.getActivityIcon(name)
         } catch (e: PackageManager.NameNotFoundException) {
             null
-        }
-    }
-
-    private fun write(entries: List<CatalogEntry>) {
-        val out = cacheFile.startWrite()
-        try {
-            out.write(CatalogCache.serialize(entries).toByteArray())
-            cacheFile.finishWrite(out)
-        } catch (e: IOException) {
-            cacheFile.failWrite(out)
         }
     }
 }

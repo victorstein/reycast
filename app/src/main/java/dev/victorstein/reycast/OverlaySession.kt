@@ -41,12 +41,13 @@ class OverlaySession(
     private val onClosed: () -> Unit,
 ) {
     private val windowManager = context.getSystemService(WindowManager::class.java)
-    private val main = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val root = LayoutInflater.from(ContextThemeWrapper(context, android.R.style.Theme_DeviceDefault))
         .inflate(R.layout.overlay_panel, null) as OverlayRoot
     private val query: EditText = root.findViewById(R.id.query)
     private val rows: List<View>
-    private val icons = HashMap<String, Drawable?>()
+    private val placeholderIcon: Drawable by lazy { context.getDrawable(android.R.drawable.sym_def_app_icon)!! }
+    private val icons = HashMap<String, Drawable>()
     private val iconsLoading = HashSet<String>()
     private var entries: List<CatalogEntry> = emptyList()
     private var frecency: Map<String, Int> = emptyMap()
@@ -86,7 +87,7 @@ class OverlaySession(
         val cachedEntries = entries
         background.execute {
             val fresh = catalog.refresh(cachedEntries)
-            main.post {
+            mainHandler.post {
                 if (!closed && fresh != entries) {
                     entries = fresh
                     render()
@@ -121,7 +122,9 @@ class OverlaySession(
         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
     ).apply {
-        // Cover the status bar and DeX taskbar too, so clicking them counts as "outside" and closes the panel.
+        // placePanel() positions the panel from maximumWindowMetrics (the full display), so the window must
+        // cover the full display, bars' areas included. A TYPE_APPLICATION_OVERLAY sits below the status bar
+        // and taskbar, so clicks there never reach the scrim; the resulting focus loss closes the panel.
         fitInsetsTypes = 0
         title = "ReyCast"
     }
@@ -133,7 +136,8 @@ class OverlaySession(
                 if (logged) return
                 logged = true
                 Log.i(TAG, "first frame +${SystemClock.uptimeMillis() - requestedAtMs} ms")
-                main.post { root.viewTreeObserver.removeOnDrawListener(this) }
+                // Removing an OnDrawListener from inside onDraw throws.
+                mainHandler.post { root.viewTreeObserver.removeOnDrawListener(this) }
             }
         })
     }
@@ -145,6 +149,7 @@ class OverlaySession(
             val entry = results.getOrNull(index)
             row.visibility = if (entry == null) View.GONE else View.VISIBLE
             if (entry != null) {
+                row.tag = entry.component
                 row.findViewById<TextView>(R.id.label).text = entry.label
                 row.setBackgroundResource(if (index == selected) R.drawable.row_selected_bg else 0)
                 bindIcon(row.findViewById(R.id.icon), entry.component)
@@ -153,17 +158,21 @@ class OverlaySession(
     }
 
     private fun bindIcon(view: ImageView, component: String) {
-        if (icons.containsKey(component)) {
-            view.setImageDrawable(icons[component] ?: context.getDrawable(android.R.drawable.sym_def_app_icon))
+        icons[component]?.let {
+            view.setImageDrawable(it)
             return
         }
         view.setImageDrawable(null)
         if (!iconsLoading.add(component)) return
         background.execute {
             val icon = catalog.loadIcon(component)
-            main.post {
-                icons[component] = icon
-                if (!closed) render()
+            mainHandler.post {
+                val loaded = icon ?: placeholderIcon
+                icons[component] = loaded
+                if (closed) return@post
+                rows.firstOrNull { it.visibility == View.VISIBLE && it.tag == component }
+                    ?.findViewById<ImageView>(R.id.icon)
+                    ?.setImageDrawable(loaded)
             }
         }
     }
@@ -187,7 +196,11 @@ class OverlaySession(
             KeyAction.MoveDown -> moveSelection(1)
             KeyAction.Launch -> results.getOrNull(selected)?.let(::launch)
             KeyAction.Close -> close()
-            is KeyAction.Type -> query.text.insert(query.selectionStart.coerceAtLeast(0), action.char.toString())
+            is KeyAction.Type -> {
+                val start = query.selectionStart.coerceAtLeast(0)
+                val end = query.selectionEnd.coerceAtLeast(0)
+                query.text.replace(minOf(start, end), maxOf(start, end), action.char.toString())
+            }
             KeyAction.PassThrough -> Unit
         }
     }

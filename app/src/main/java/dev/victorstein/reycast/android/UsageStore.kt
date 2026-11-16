@@ -25,13 +25,7 @@ class UsageStore(
                 history.record(component, now)
                 history.serialize()
             }
-            val out = file.startWrite()
-            try {
-                out.write(text.toByteArray())
-                file.finishWrite(out)
-            } catch (e: IOException) {
-                file.failWrite(out)
-            }
+            file.writeQuietly(text)
         }
     }
 }
