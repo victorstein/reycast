@@ -41,7 +41,7 @@ class OverlaySession(
     private val requestedAtMs: Long,
     private val windowType: Int,
     private val onClosed: () -> Unit,
-) {
+) : Session {
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val root = LayoutInflater.from(ContextThemeWrapper(context, android.R.style.Theme_DeviceDefault))
@@ -97,11 +97,11 @@ class OverlaySession(
         }
     }
 
-    fun close() {
+    override fun close() {
         if (closed) return
         closed = true
         try {
-            if (root.isAttachedToWindow) windowManager.removeView(root)
+            if (root.parent != null) windowManager.removeView(root)
         } finally {
             onClosed()
         }
