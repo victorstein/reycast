@@ -101,7 +101,7 @@ class OverlaySession(
         if (closed) return
         closed = true
         try {
-            if (root.isAttachedToWindow) windowManager.removeView(root)
+            if (root.parent != null) windowManager.removeView(root)
         } finally {
             onClosed()
         }

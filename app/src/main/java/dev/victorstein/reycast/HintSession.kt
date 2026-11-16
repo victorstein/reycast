@@ -41,6 +41,7 @@ class HintSession(
     private val filter = HintFilter(labels)
     private val badges = labels.map(::createBadge)
     private var closed = false
+    private var shiftPressedDuringSession = false
 
     fun open() {
         root.onKey = ::handleKey
@@ -60,7 +61,8 @@ class HintSession(
         if (closed) return
         closed = true
         try {
-            if (root.isAttachedToWindow) windowManager.removeView(root)
+            // parent is set inside addView; isAttachedToWindow stays false until the first traversal.
+            if (root.parent != null) windowManager.removeView(root)
         } finally {
             onClosed()
         }
@@ -135,21 +137,26 @@ class HintSession(
     // Matched by keyCode, not by character: the summon chord's Alt may still be held, and Alt+letter
     // produces no character.
     private fun handleKey(event: KeyEvent): Boolean {
-        if (closed || event.action != KeyEvent.ACTION_DOWN) return true
+        if (closed || event.action != KeyEvent.ACTION_DOWN || event.repeatCount > 0) return true
         when (event.keyCode) {
             KeyEvent.KEYCODE_ESCAPE -> close()
             KeyEvent.KEYCODE_DEL -> {
                 filter.backspace()
                 render()
             }
+            // Shift may still be held from the summon chord; only a Shift pressed while hints are up long-presses.
+            KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> shiftPressedDuringSession = true
             in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> {
                 val match = filter.type('a' + (event.keyCode - KeyEvent.KEYCODE_A))
-                if (match == null) render() else act(targets[match], longPress = event.isShiftPressed)
+                val longPress = shiftPressedDuringSession && event.isShiftPressed
+                if (match == null) render() else act(targets[match], longPress)
             }
         }
         return true
     }
 
+    // shortcut: refresh() and performAction() are blocking binder calls on the main thread (up to ~5 s if the
+    // target app hangs); move act() to the background executor if that shows up in use.
     private fun act(target: HintTarget, longPress: Boolean) {
         close()
         val node = target.node
@@ -159,7 +166,10 @@ class HintSession(
             if (target.editable) node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
             return
         }
+        // Clipped to what was visible when labelled: an unclipped centre can be off screen (StrokeDescription
+        // throws on negative coordinates) or under another window.
         val bounds = Rect().also(node::getBoundsInScreen)
+        if (!bounds.intersect(target.rect)) return toast(R.string.hint_target_gone)
         val path = Path().apply { moveTo(bounds.exactCenterX(), bounds.exactCenterY()) }
         val stroke = GestureDescription.StrokeDescription(path, 0, if (longPress) LONG_PRESS_MS else TAP_MS)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()

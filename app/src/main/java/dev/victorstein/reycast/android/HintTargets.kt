@@ -42,7 +42,7 @@ object HintTargets {
             if (!rect.intersect(windowBounds) || rect.isEmpty) continue
             if (covered.contains(rect.centerX(), rect.centerY())) continue
             val target = HintTarget(node, rect, node.isEditable)
-            // Identical rects: the later node in tree order is the deeper one; the outer is usually a ripple wrapper.
+            // Identical rects: keep the later node in tree order (deeper, or drawn on top); the outer is usually a ripple wrapper.
             val existing = indexByRect[rect]
             if (existing != null) {
                 targets[existing] = target
