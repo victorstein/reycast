@@ -1,5 +1,5 @@
 #!/bin/sh
 # Gradle needs JDK 21 and the SDK path; Homebrew's openjdk@21 is keg-only, so it is not on PATH.
-export JAVA_HOME="$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
+export JAVA_HOME="${JAVA_HOME:-$(brew --prefix)/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home}"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 exec "$(dirname "$0")/gradlew" "$@"
