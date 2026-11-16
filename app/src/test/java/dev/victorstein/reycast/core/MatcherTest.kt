@@ -20,6 +20,17 @@ class MatcherTest {
     }
 
     @Test
+    fun wordStartSurvivesAccentFolding() {
+        assertEquals(Tier.WORD_START, Matcher.match("bar", "Café Bar")?.tier)
+        assertEquals(Tier.WORD_START, Matcher.match("bar", "Cafe\u0301 Bar")?.tier)
+    }
+
+    @Test
+    fun midWordSubstringIsNotWordStart() {
+        assertEquals(Match(Tier.SUBSEQUENCE, 0), Matcher.match("tore", "Play Store"))
+    }
+
+    @Test
     fun wordStartAtCamelCaseBoundary() {
         assertEquals(Tier.WORD_START, Matcher.match("mapper", "KeyMapper")?.tier)
     }
