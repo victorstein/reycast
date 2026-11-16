@@ -19,8 +19,8 @@ Launch any installed app from the keyboard in a few keystrokes: Cmd+Space, type 
 Enter. The only feature is app launching.
 
 Out of scope: commands, scripts, plugins, window management (already done in Key Mapper),
-calculator, web search, snippets, clipboard history, settings screen, themes, start at boot, and the
-cross-desk window switcher (a separate follow-up project built on top of ReyCast).
+calculator, web search, snippets, clipboard history, settings screen, themes, start at boot, and a
+cross-desk window switcher (dropped 2026-11-16: Alfonso works on one desktop; Android's own Cmd+Tab covers it).
 
 ## Step 0: platform spike (before any feature code)
 
@@ -35,7 +35,7 @@ Two platform behaviours decide the shape of the app and can only be settled on t
    Chrome (adb-started activities don't count: the shell may always start activities).
 
 Outcomes:
-- Both pass → the **activity window** design below is used.
+- Both pass → a floating-activity window is used.
 - (1) fails → **overlay window**: a trampoline activity (no UI) that starts at once adds the panel as
   a `TYPE_APPLICATION_OVERLAY` window (overlay permission granted over adb with
   `appops set dev.victorstein.reycast SYSTEM_ALERT_WINDOW allow`) and finishes. Everything else in
@@ -44,7 +44,19 @@ Outcomes:
   (`am start -n dev.victorstein.reycast/.LauncherActivity`) instead of the APP action, the same route
   the existing desk-switching maps use.
 
-The spike result is recorded in this spec before implementation continues.
+### Spike result (2026-11-15)
+
+- Window: the floating activity runs as a `freeform` task. Small (40% wide), it has no caption bar but
+  DeX pins it to the left edge; the manifest `<layout gravity>` hint and in-task gravity are ignored.
+  Made full-screen and transparent to center the panel inside it, the task gets DeX's caption bar
+  (app icon + minimize/maximize/close), and immersive mode does not hide it. **Check 1 fails.**
+- Overlay prototype: a `TYPE_APPLICATION_OVERLAY` panel opened by an invisible trampoline activity is
+  centered, has no caption bar, takes keyboard focus (typed text lands in the field), closes on Esc
+  with focus returning to the previous window, and leaves no task in Recents.
+- Hotkey: Key Mapper's **APP** action opens ReyCast from Chrome with no background-start block.
+  **Check 2 passes.**
+- Samsung's Freecess freezes the ReyCast process a few seconds after it closes; the next summon thaws it.
+- **Decision: overlay window design** (below), hotkey via the APP action.
 
 ## User experience
 
@@ -117,34 +129,38 @@ Views (no Jetpack Compose) to keep the APK small and the window fast to appear.
 
 | Unit | Responsibility | Depends on |
 |------|----------------|------------|
-| `LauncherActivity` | The panel window (or the overlay trampoline, per step 0): search field, result list, key handling, launch, closing. | `AppCatalog`, `Ranker`, `UsageStore` |
+| `LauncherActivity` | Invisible trampoline: toggles the overlay, finishes. | `ReyCastOverlay` |
+| `ReyCastOverlay` | Process-wide owner of the open panel (if any), the `AppCatalog` and the `UsageStore`; checks the overlay permission. | `OverlaySession` |
+| `OverlaySession` | One open panel: overlay window, search field, result rows, key handling, launch, closing. | `AppCatalog`, `Ranker`, `UsageStore`, `KeyRouter` |
+| `OverlayRoot` | Root view of the panel: forwards key events and focus loss to the session. | nothing |
 | `AppCatalog` | Lists launcher activities (`ACTION_MAIN` + `CATEGORY_LAUNCHER`), excluding ReyCast; keeps labels in memory and in a disk cache keyed by package + last-update time; loads icons off the main thread. | Android `PackageManager` |
 | `Matcher` | Pure function: (query, label) → tier and gap count, or no match. | nothing |
-| `UsageStore` | Records launches, prunes, computes frecency; persists JSON in app-private storage. | a clock, a file |
+| `UsageStore` | Records launches, prunes, computes frecency; persists a small tab/comma text file in app-private storage. | a clock, a file |
 | `Ranker` | Pure function: entries + query + frecency → ordered list (max 8). | `Matcher` |
 
 `Matcher`, `Ranker` and `UsageStore`'s logic are plain Kotlin with no Android dependencies so they can
 be unit-tested on the Mac; `UsageStore` takes its clock and file as constructor parameters.
 
-### Window (activity design)
+### Window (overlay design)
 
-- Translucent activity themed as a floating panel; `launchMode="singleTask"`,
-  `excludeFromRecents="true"`, `noHistory="true"`, no open/close animation where the system allows it.
-- It has a `MAIN`/`LAUNCHER` intent filter, so it is openable from the app drawer and by package.
-- **Closing always uses `finishAndRemoveTask()`**, so no ReyCast task survives to be brought forward
-  later (which could switch desks). Triggers:
-  - Esc, Enter after a launch, and `onNewIntent` while visible (Cmd+Space again);
-  - `onWindowFocusChanged(false)` and `onTopResumedActivityChanged(false)`. Not `onPause`: in desktop
-    windowing several windows stay resumed at once, so pause is not a reliable "lost focus" signal.
-- The search field takes focus immediately. The soft keyboard does not appear when the Corne is
-  connected (the tablet already hides it with a hardware keyboard).
+- `LauncherActivity` is an invisible trampoline (`Theme.NoDisplay`, `excludeFromRecents`, `noHistory`,
+  `MAIN`/`LAUNCHER` filter so Key Mapper and the app drawer can start it). It toggles the overlay and
+  finishes immediately: if the panel is showing it closes, otherwise it opens.
+- The panel is a `TYPE_APPLICATION_OVERLAY` window covering the whole screen with a transparent
+  background; the visible panel inside it is horizontally centered, 40% of the screen width, its top
+  edge at 15% of the screen height. Requires `SYSTEM_ALERT_WINDOW`, granted at install time over adb
+  (`appops set dev.victorstein.reycast SYSTEM_ALERT_WINDOW allow`).
+- Closing removes the overlay window. Triggers: Esc, Enter after a launch, summoning again (toggle), a
+  click or tap outside the panel, and the overlay window losing focus (another window focused, desk
+  switch, Cmd+Tab).
+- The search field takes focus when the overlay opens. The soft keyboard does not appear when the
+  Corne is connected; Samsung's hardware-keyboard toolbar may show while the field is focused.
 
 ### Key handling
 
-All navigation keys are handled in `Activity.dispatchKeyEvent` on key-down, before any view sees them,
-because a focused single-line text field otherwise consumes ↑ (cursor to start), moves focus out on ↓,
-and turns Enter into an editor action, and an unhandled Esc becomes Back (which on a launcher
-activity moves the task to the back instead of finishing):
+All navigation keys are handled in the overlay root view's `dispatchKeyEvent` on key-down, before
+the text field sees them, because a focused single-line text field otherwise consumes ↑ (cursor to
+start), moves focus out on ↓, and turns Enter into an editor action:
 - ↑, ↓, Ctrl+K, Ctrl+J, Enter, numpad Enter, Esc → handled and consumed.
 - A printable key with only Alt held → typed into the field as the plain character.
 - Everything else → passed on to the search field.
@@ -162,8 +178,10 @@ Result rows are not focusable; focus never leaves the search field.
 - Enter starts the highlighted entry's component explicitly (`ACTION_MAIN` + `CATEGORY_LAUNCHER`,
   `FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_RESET_TASK_IF_NEEDED`), so apps with several launcher entries
   open the right one, and an already-running app's existing task is brought forward.
+- The app is started while the overlay is still visible (a visible overlay window is what lets ReyCast
+  start activities from the background), then the overlay closes.
 - After `startActivity` succeeds, the launch is recorded in `UsageStore` (written off the main thread
-  with `AtomicFile`, so a crash mid-write never corrupts history) and ReyCast closes.
+  with `AtomicFile`, so a crash mid-write never corrupts history).
 - **Known limitation:** what Android does when the app's window is on another desk (switch desk, move
   the window, or nothing visible) and which window a multi-window app like Chrome brings forward are
   platform behaviour. ReyCast does not try to control it; the manual tests record what happens.
@@ -185,6 +203,8 @@ The regenerated `mac-shortcuts.json` is imported with Restore → Replace.
 - **Activity uninstalled, disabled or no longer launchable** (`ActivityNotFoundException` or
   `SecurityException` on launch): a short toast ("Can't open <name>"), the row is removed, ReyCast
   stays open.
+- **Overlay permission missing** (e.g. after a reinstall without the install script): a toast
+  ("ReyCast needs Display over other apps"); nothing opens.
 - **Usage file unreadable or corrupt:** treated as empty history; the next launch rewrites it.
 - **Catalog cache unreadable:** ignored; the catalog is rebuilt from `PackageManager`.
 - **Icon fails to load:** a neutral placeholder icon is shown; the row still works.
@@ -214,12 +234,13 @@ The regenerated `mac-shortcuts.json` is imported with Restore → Replace.
     the subsequence tier; alphabetical tiebreak; 8-row cap; empty query.
 - **On-device checks over adb:**
   - Type with `input text`, confirm the expected top row via `uiautomator dump`; Enter launches; Esc
-    closes; no ReyCast task remains afterwards (`dumpsys activity recents`).
-  - Speed, triggered by the real Cmd+Space through Key Mapper (not `am start`): the system's
-    `ActivityTaskManager: Displayed dev.victorstein.reycast/... +Nms` log line (time from Key Mapper's
-    start request to the first drawn frame), with the ReyCast process both warm and force-stopped
-    (cold). Target under 200 ms warm. Key Mapper's own evdev-to-request time is excluded; it is the
-    same path every existing shortcut already uses.
+    closes; no ReyCast window or task remains afterwards (`dumpsys window windows`, `dumpsys activity recents`).
+  - Speed, triggered by the real Cmd+Space through Key Mapper (not `am start`): ReyCast logs
+    `ReyCast: first frame +N ms` (trampoline start to the overlay's first draw), and the gap between the
+    system's `ActivityTaskManager: START ... dev.victorstein.reycast` log line and that line gives Key
+    Mapper's start request to first frame. Measured with the process warm, frozen by Freecess (a few
+    seconds idle) and force-stopped (cold). Target under 200 ms warm. Key Mapper's own evdev-to-request
+    time is excluded; it is the same path every existing shortcut already uses.
 - **Manual, with the real Corne:**
   - Cmd+Space from Chrome, Termux and an empty desktop; Cmd+Space again closes it.
   - ↑/↓, Ctrl+J/K, Enter and Esc with a real keyboard (adb key injection doesn't reproduce text-field
@@ -228,3 +249,37 @@ The regenerated `mac-shortcuts.json` is imported with Restore → Replace.
     first keys land in Termux).
   - Summon on desk 1, switch to desk 2, summon again: it opens on desk 2 without switching back.
   - Launch an app already running on the same desk and on another desk; record what happens.
+
+## Changes after the spike (2026-11-16)
+
+Found while testing on the tablet; they supersede the matching parts above.
+
+- **Hotkey is a broadcast, not an app launch.** DeX caps a desktop at 5 open apps and counted the
+  trampoline activity as one, so with 5 apps open Cmd+Space failed ("cannot show more than 5 apps").
+  Key Mapper's Cmd+Space map now uses an **Intent** action, target `BROADCAST_RECEIVER`, URI
+  `#Intent;action=dev.victorstein.reycast.TOGGLE;component=dev.victorstein.reycast/.ToggleReceiver;end`.
+  The exported `ToggleReceiver` toggles the panel. `LauncherActivity` stays as the app-drawer entry.
+- **The panel is an accessibility overlay when possible.** With 5 apps open Samsung force-hides
+  non-system overlays (`mForceHideNonSystemOverlayWindow=true`), so `TYPE_APPLICATION_OVERLAY` was
+  added but invisible. ReyCast now has a minimal accessibility service
+  (`ReyCastAccessibilityService`: one cheap event type, no content retrieval, no key filtering) whose
+  WindowManager draws the panel as `TYPE_ACCESSIBILITY_OVERLAY`, which is exempt, takes keyboard focus,
+  and may start activities. `install.sh` appends it to `enabled_accessibility_services` next to Key
+  Mapper's. Without the service, the old `TYPE_APPLICATION_OVERLAY` path remains.
+- One overlay window context is cached per display instead of created per summon.
+- Testing note: `uiautomator dump` suspends accessibility services and closes the panel; verify with
+  screenshots instead.
+
+## Verification (2026-11-16)
+
+- Speed (`ReyCast: first frame`): 46–94 ms across summons; 64 ms from Key Mapper's start request to the
+  first frame in the activity-launch era. Target (200 ms) met.
+- With 5 apps open on the desktop: panel shows, has focus, typing works (accessibility overlay).
+- ↑/↓, Ctrl+J/K, Enter, Esc, Cmd+Space toggle, click outside to close: work (Alfonso).
+- "Hold Cmd, Space, t": "t" lands in the box. Cmd+Space from Termux then typing immediately: the keys
+  land in the box.
+- Launching an app that is open on another desk: Android moves it to the current desk. If the current
+  desk already has 5 apps, DeX refuses with "cannot show more than 5 apps" (DeX's own cap; known
+  limitation).
+- Not verified: summoning on a second desk; cold-start timing after Freecess freezing; DeX on an
+  external display.
