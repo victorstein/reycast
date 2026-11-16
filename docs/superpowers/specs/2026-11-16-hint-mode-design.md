@@ -44,6 +44,23 @@ Timing: warm walks of a 1,560-node Chrome page took 33–57 ms; the first walk a
 reinstall took 0.9–1.5 s while Chrome built its accessibility tree. The taskbar and Termux took
 ~90 ms. Skipping subtrees outside the window bounds did not reduce the node count.
 
+## Device verification (2026-11-16, DeX on, tablet screen)
+
+All via adb plus one real-keyboard run by the user; no crashes in `logcat -b crash`.
+- Real Corne combo (layer1+layer2+f) shows hints and the user could click with them.
+- Settings: 28 targets, shown +258 ms; label click opened the right page; Esc and summon-again close.
+- Chrome page (DeX, floating over Termux): 49–53 targets, shown +322–343 ms; a link label opened
+  the link. Nothing in the covered part of Termux was labelled; the visible strip of a window below
+  another was.
+- Chrome overflow menu: stays open under the overlay, items labelled, a label opened History.
+- Editable field (Chrome history search): label focused it and typed text landed in it.
+- Shift on the final letter: opened Chrome's link context menu (long-press).
+- Airplane mode switch is labelled on its own page; its row in the Connections list is not
+  (that row is not exposed as clickable) — accepted.
+- Not run: the 5-apps-per-desk cap, and the combo while Termux is focused.
+
+Observed for later: badges at a link's top-left cover the first letters of inline link text.
+
 ## Hotkey
 
 On the Corne (ZMK, `victorstein/zmk-config-corne`, used only with the tablet), holding layers 1 and
