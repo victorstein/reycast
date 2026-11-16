@@ -33,6 +33,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="dev.victorstein.reycast.TOGGLE" />
+                <action android:name="dev.victorstein.reycast.HINTS" />
             </intent-filter>
         </receiver>
 

@@ -7,6 +7,15 @@ import android.os.SystemClock
 
 class ToggleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        ReyCastOverlay.toggle(context.applicationContext, SystemClock.uptimeMillis())
+        val requestedAtMs = SystemClock.uptimeMillis()
+        if (intent.action == ACTION_HINTS) {
+            ReyCastOverlay.toggleHints(context.applicationContext, requestedAtMs)
+        } else {
+            ReyCastOverlay.toggle(context.applicationContext, requestedAtMs)
+        }
+    }
+
+    companion object {
+        const val ACTION_HINTS = "dev.victorstein.reycast.HINTS"
     }
 }
