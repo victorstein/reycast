@@ -139,7 +139,7 @@ class HintSession(
     private fun handleKey(event: KeyEvent): Boolean {
         if (closed || event.action != KeyEvent.ACTION_DOWN || event.repeatCount > 0) return true
         when (event.keyCode) {
-            KeyEvent.KEYCODE_ESCAPE -> close()
+            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BACK -> close()
             KeyEvent.KEYCODE_DEL -> {
                 filter.backspace()
                 render()

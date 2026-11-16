@@ -33,6 +33,10 @@ object ReyCastOverlay {
     private var catalog: AppCatalog? = null
     private var usage: UsageStore? = null
     private val background: ExecutorService = Executors.newSingleThreadExecutor()
+    // Separate from [background] so a catalog refresh or icon load never delays hints, and a slow app never delays the launcher.
+    private val hintCollector: ExecutorService = Executors.newSingleThreadExecutor()
+    // Bumped by every summon; a collection that finishes after a newer summon is dropped.
+    private var summons = 0
     private val mainHandler = Handler(Looper.getMainLooper())
     private val icons = HashMap<String, Drawable>()
 
@@ -46,6 +50,7 @@ object ReyCastOverlay {
 
     // The overlay lands on the given display (DeX external monitor) rather than always on the tablet screen.
     fun toggle(appContext: Context, requestedAtMs: Long, display: Display? = null) {
+        summons++
         session?.let {
             it.close()
             if (it is OverlaySession) return
@@ -75,6 +80,7 @@ object ReyCastOverlay {
     }
 
     fun toggleHints(appContext: Context, requestedAtMs: Long) {
+        val summon = ++summons
         session?.let {
             it.close()
             if (it is HintSession) return
@@ -83,13 +89,11 @@ object ReyCastOverlay {
             Toast.makeText(appContext, R.string.needs_accessibility_service, Toast.LENGTH_LONG).show()
             return
         }
-        // shortcut: a second summon while targets are still being collected neither cancels nor reopens;
-        // add a pending-collection flag if that shows up in use.
-        background.execute {
+        hintCollector.execute {
             val targets = HintTargets.collect(service)
             Log.i(TAG, "hints collected: ${targets.size} +${SystemClock.uptimeMillis() - requestedAtMs} ms")
             mainHandler.post {
-                if (session != null || accessibilityService !== service) return@post
+                if (summon != summons || session != null || accessibilityService !== service) return@post
                 if (targets.isEmpty()) {
                     Toast.makeText(service, R.string.nothing_clickable, Toast.LENGTH_SHORT).show()
                     return@post
