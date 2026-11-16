@@ -135,7 +135,7 @@ Views (no Jetpack Compose) to keep the APK small and the window fast to appear.
 | `OverlayRoot` | Root view of the panel: forwards key events and focus loss to the session. | nothing |
 | `AppCatalog` | Lists launcher activities (`ACTION_MAIN` + `CATEGORY_LAUNCHER`), excluding ReyCast; keeps labels in memory and in a disk cache keyed by package + last-update time; loads icons off the main thread. | Android `PackageManager` |
 | `Matcher` | Pure function: (query, label) → tier and gap count, or no match. | nothing |
-| `UsageStore` | Records launches, prunes, computes frecency; persists JSON in app-private storage. | a clock, a file |
+| `UsageStore` | Records launches, prunes, computes frecency; persists a small tab/comma text file in app-private storage. | a clock, a file |
 | `Ranker` | Pure function: entries + query + frecency → ordered list (max 8). | `Matcher` |
 
 `Matcher`, `Ranker` and `UsageStore`'s logic are plain Kotlin with no Android dependencies so they can
