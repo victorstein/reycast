@@ -19,7 +19,8 @@ class UsageHistory {
         val iterator = launches.entries.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            val kept = entry.value.filter { nowMs - it < MAX_AGE_MS }.sorted().takeLast(MAX_LAUNCHES)
+            val kept = entry.value.map { minOf(it, nowMs) }
+                .filter { nowMs - it < MAX_AGE_MS }.sorted().takeLast(MAX_LAUNCHES)
             if (kept.isEmpty()) iterator.remove() else entry.setValue(kept.toMutableList())
         }
     }

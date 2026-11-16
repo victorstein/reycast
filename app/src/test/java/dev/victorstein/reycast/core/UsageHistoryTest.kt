@@ -32,8 +32,25 @@ class UsageHistoryTest {
     @Test
     fun keepsOnlyTheTwentyMostRecentLaunches() {
         val history = UsageHistory()
-        repeat(25) { history.record("a/A", now) }
-        assertEquals(20 * 100, history.scores(now)["a/A"])
+        repeat(20) { history.record("a/A", now - 2 * day) }
+        repeat(5) { history.record("a/A", now) }
+        assertEquals(5 * 100 + 15 * 60, history.scores(now)["a/A"])
+    }
+
+    @Test
+    fun launchRecordedInTheFutureIsTreatedAsNowOnceClockMovesBack() {
+        val history = UsageHistory()
+        history.record("a/A", now + 10 * day)
+        history.record("b/B", now)
+        assertEquals(60, history.scores(now + 2 * day)["a/A"])
+    }
+
+    @Test
+    fun launchExactlyThirtyDaysOldIsPruned() {
+        val history = UsageHistory()
+        history.record("old/Old", now)
+        history.record("new/New", now + 30 * day)
+        assertFalse(history.serialize().contains("old/Old"))
     }
 
     @Test
@@ -41,7 +58,6 @@ class UsageHistoryTest {
         val history = UsageHistory()
         history.record("old/Old", now)
         history.record("new/New", now + 31 * day)
-        assertFalse(history.scores(now + 31 * day).containsKey("old/Old"))
         assertFalse(history.serialize().contains("old/Old"))
     }
 

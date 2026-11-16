@@ -58,4 +58,33 @@ class RankerTest {
     fun nonMatchingEntriesAreHidden() {
         assertEquals(listOf("Termux"), labels(Ranker.rank(listOf(entry("Termux"), entry("Chrome")), "ter", emptyMap())))
     }
+
+    @Test
+    fun equalLabelsAreOrderedByComponentRegardlessOfInputOrder() {
+        val first = CatalogEntry("a/.S", "Settings", "a", 0)
+        val second = CatalogEntry("b/.S", "Settings", "b", 0)
+        for (query in listOf("", "set")) {
+            assertEquals(listOf(first, second), Ranker.rank(listOf(second, first), query, emptyMap()))
+            assertEquals(listOf(first, second), Ranker.rank(listOf(first, second), query, emptyMap()))
+        }
+    }
+
+    @Test
+    fun frecencyOrdersWithinTheWordStartTier() {
+        val playStore = entry("Play Store")
+        val appStore = entry("App Store")
+        val frecency = mapOf(playStore.component to 300, appStore.component to 100)
+        assertEquals(listOf("Play Store", "App Store"), labels(Ranker.rank(listOf(appStore, playStore), "st", frecency)))
+    }
+
+    @Test
+    fun alphabeticalTiebreakAppliesToANonBlankQuery() {
+        assertEquals(listOf("Telegram", "Termux"), labels(Ranker.rank(listOf(entry("Termux"), entry("Telegram")), "te", emptyMap())))
+    }
+
+    @Test
+    fun surroundingWhitespaceInTheQueryIsIgnored() {
+        val entries = listOf(entry("Termux"), entry("Chrome"), entry("Telegram"))
+        assertEquals(Ranker.rank(entries, "te", emptyMap()), Ranker.rank(entries, " te ", emptyMap()))
+    }
 }
