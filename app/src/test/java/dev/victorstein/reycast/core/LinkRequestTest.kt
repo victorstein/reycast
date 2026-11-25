@@ -48,6 +48,23 @@ class LinkRequestTest {
         assertNull(LinkRequest.loopbackCallbackPort("https://github.com/a/b"))
     }
 
+    @Test fun parsesNotice() =
+        assertEquals("Claude finished · personal", LinkRequest.parseNotice("s3cret notify Claude finished · personal\n", token))
+
+    @Test fun noticeNeedsTokenAndText() {
+        assertNull(LinkRequest.parseNotice("nope notify hi", token))
+        assertNull(LinkRequest.parseNotice(" notify hi", ""))
+        assertNull(LinkRequest.parseNotice("s3cret notify   ", token))
+        assertNull(LinkRequest.parseNotice("s3cret https://a.com", token))
+    }
+
+    @Test fun noticeDropsControlCharsAndIsCapped() {
+        assertEquals("ab", LinkRequest.parseNotice("s3cret notify a\u001b\u0007b", token))
+        assertEquals(LinkRequest.MAX_NOTICE, LinkRequest.parseNotice("s3cret notify " + "x".repeat(1000), token)?.length)
+    }
+
+    @Test fun noticeIsNotALink() = assertNull(LinkRequest.parse("s3cret notify https://a.com", token))
+
     @Test fun tailnetRange() {
         assertTrue(LinkRequest.isTailnetPeer(byteArrayOf(100, 70, 158.toByte(), 120)))
         assertTrue(LinkRequest.isTailnetPeer(byteArrayOf(100, 127, 0, 1)))
