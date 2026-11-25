@@ -217,10 +217,10 @@ class ScrollSession(
 
     private companion object {
         const val HELP = "j k scroll  ·  d u half page  ·  gg G top/bottom  ·  h l sideways  ·  Esc done"
-        const val STEP_SHARE = 0.2f
+        const val STEP_SHARE = 0.12f
         const val FLING_SHARE = 0.6f
         const val FLINGS_TO_END = 6
-        const val DRAG_MS = 120L
+        const val DRAG_MS = 180L
         const val HOLD_MS = 80L
         const val FLING_MS = 60L
         const val BORDER_DP = 3
