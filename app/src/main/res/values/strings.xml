@@ -6,6 +6,7 @@
     <string name="accessibility_service_description">Lets ReyCast show its search box even when DeX hides app overlays, and click on-screen elements from the keyboard</string>
     <string name="needs_accessibility_service">Turn on ReyCast in Accessibility settings to use hints</string>
     <string name="nothing_clickable">Nothing clickable on screen</string>
+    <string name="nothing_scrollable">Nothing to scroll on screen</string>
     <string name="hint_target_gone">That element is no longer on screen</string>
     <string name="hint_cannot_click">Couldn\'t click that element</string>
 </resources>

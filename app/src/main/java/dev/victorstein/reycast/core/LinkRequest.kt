@@ -8,17 +8,28 @@ import java.security.MessageDigest
 /** One request line from the Mac: "<token> <url>". Only http(s) links with the right token are accepted. */
 object LinkRequest {
     const val MAX_LINE = 8192
+    const val MAX_NOTICE = 300
 
     fun parse(line: String, token: String): String? {
         if (token.isEmpty() || line.length > MAX_LINE) return null
         val parts = line.trim().split(' ', limit = 2)
         if (parts.size != 2) return null
         val (sentToken, url) = parts
-        if (!MessageDigest.isEqual(sentToken.toByteArray(), token.toByteArray())) return null
+        if (!tokenMatches(sentToken, token)) return null
         val isWebLink = url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
         if (!isWebLink || url.any { it.isWhitespace() || it.isISOControl() }) return null
         return url
     }
+
+    /** "<token> notify <text>": a message to show on screen, e.g. "Claude finished · personal". */
+    fun parseNotice(line: String, token: String): String? {
+        if (token.isEmpty() || line.length > MAX_LINE) return null
+        val parts = line.trim().split(' ', limit = 3)
+        if (parts.size != 3 || parts[1] != "notify" || !tokenMatches(parts[0], token)) return null
+        return parts[2].filterNot { it.isISOControl() }.trim().take(MAX_NOTICE).ifEmpty { null }
+    }
+
+    private fun tokenMatches(sent: String, token: String) = MessageDigest.isEqual(sent.toByteArray(), token.toByteArray())
 
     /**
      * The port of an OAuth `redirect_uri` that points at the sender's own loopback (http://localhost:PORT/...).

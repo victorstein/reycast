@@ -11,11 +11,11 @@ import java.net.ServerSocket
 import java.net.Socket
 
 /**
- * Opens links the Mac sends over Tailscale, so `open <url>` run over ssh lands on the tablet.
+ * Opens links (and shows notices) the Mac sends over Tailscale, so `open <url>` run over ssh lands on the tablet.
  * Started by the accessibility service because that keeps the process alive; the background activity start
  * itself is allowed by the overlay permission install.sh grants (logged as BAL_ALLOW_SAW_PERMISSION).
  */
-class LinkServer(private val context: Context) {
+class LinkServer(private val context: Context, private val onNotice: (String) -> Unit) {
     @Volatile private var server: ServerSocket? = null
 
     fun start() {
@@ -55,6 +55,11 @@ class LinkServer(private val context: Context) {
             if (!LinkRequest.isTailnetPeer(client.inetAddress.address)) return
             client.soTimeout = 2000
             val line = client.getInputStream().bufferedReader().readLine() ?: return
+            LinkRequest.parseNotice(line, token)?.let {
+                onNotice(it)
+                client.getOutputStream().write("ok\n".toByteArray())
+                return
+            }
             val url = LinkRequest.parse(line, token)
             url?.let(LinkRequest::loopbackCallbackPort)?.let { CallbackRelay.start(it, client.inetAddress) }
             val opened = url != null && open(url)
