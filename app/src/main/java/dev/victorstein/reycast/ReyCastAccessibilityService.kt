@@ -3,11 +3,16 @@ package dev.victorstein.reycast
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
+import dev.victorstein.reycast.android.LinkServer
 
-/** Exists only to own TYPE_ACCESSIBILITY_OVERLAY windows, which DeX does not force-hide. */
+/** Owns TYPE_ACCESSIBILITY_OVERLAY windows, which DeX does not force-hide, and the link server. */
 class ReyCastAccessibilityService : AccessibilityService() {
+    private var linkServer: LinkServer? = null
+
     override fun onServiceConnected() {
         ReyCastOverlay.accessibilityService = this
+        linkServer?.stop()
+        linkServer = LinkServer(this).also { it.start() }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) = Unit
@@ -25,6 +30,8 @@ class ReyCastAccessibilityService : AccessibilityService() {
     }
 
     private fun release() {
+        linkServer?.stop()
+        linkServer = null
         ReyCastOverlay.closeSession()
         if (ReyCastOverlay.accessibilityService === this) ReyCastOverlay.accessibilityService = null
     }
