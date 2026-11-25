@@ -35,6 +35,7 @@
             <intent-filter>
                 <action android:name="dev.victorstein.reycast.TOGGLE" />
                 <action android:name="dev.victorstein.reycast.HINTS" />
+                <action android:name="dev.victorstein.reycast.SCROLL" />
             </intent-filter>
         </receiver>
 

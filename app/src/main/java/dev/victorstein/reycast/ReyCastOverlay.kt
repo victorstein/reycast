@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import dev.victorstein.reycast.android.AppCatalog
 import dev.victorstein.reycast.android.HintTargets
+import dev.victorstein.reycast.android.ScrollAreas
 import dev.victorstein.reycast.android.UsageStore
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -99,6 +100,30 @@ object ReyCastOverlay {
                     return@post
                 }
                 session = HintSession(service, targets, requestedAtMs) { session = null }.also { it.open() }
+            }
+        }
+    }
+
+    fun toggleScroll(appContext: Context, requestedAtMs: Long) {
+        val summon = ++summons
+        session?.let {
+            it.close()
+            if (it is ScrollSession) return
+        }
+        val service = accessibilityService ?: run {
+            Toast.makeText(appContext, R.string.needs_accessibility_service, Toast.LENGTH_LONG).show()
+            return
+        }
+        hintCollector.execute {
+            val areas = ScrollAreas.collect(service)
+            Log.i(TAG, "scroll areas: ${areas.joinToString()} +${SystemClock.uptimeMillis() - requestedAtMs} ms")
+            mainHandler.post {
+                if (summon != summons || session != null || accessibilityService !== service) return@post
+                if (areas.isEmpty()) {
+                    Toast.makeText(service, R.string.nothing_scrollable, Toast.LENGTH_SHORT).show()
+                    return@post
+                }
+                session = ScrollSession(service, areas) { session = null }.also { it.open() }
             }
         }
     }
