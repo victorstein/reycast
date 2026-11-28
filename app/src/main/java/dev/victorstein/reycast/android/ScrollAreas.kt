@@ -11,6 +11,9 @@ object ScrollAreas {
     private const val MIN_WINDOW_SHARE = 0.15
     // DeX draws each window's title bar as a window of its own; those are a few percent of the screen.
     private const val MIN_SCREEN_SHARE = 0.05
+    // An inner scrollable at least this share of the one around it is the same area (a pager wrapping a list);
+    // a smaller one is a carousel inside a feed, e.g. YouTube's Shorts shelf, and both stay.
+    private const val SAME_AREA_SHARE = 0.6
 
     /**
      * The big scrollable views in each visible app window; a window with none (Termux's terminal is not an
@@ -59,6 +62,10 @@ object ScrollAreas {
 
     // A pager wrapping a list are both big and nearly the same box; keep the inner one, which takes the swipe.
     private fun innermost(rects: List<Rect>): List<Rect> = rects.filter { outer ->
-        rects.none { inner -> inner !== outer && outer.contains(inner) && inner != outer }
+        rects.none { inner ->
+            inner !== outer && outer.contains(inner) && inner != outer && area(inner) >= area(outer) * SAME_AREA_SHARE
+        }
     }.distinct()
+
+    private fun area(rect: Rect) = rect.width().toLong() * rect.height()
 }
